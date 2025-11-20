@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZenReader V8 - Memory</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;600&display=swap');
+
+        :root {
+            --bg-color: #050505;
+            --text-color: #d4d4d4;
+            --accent-color: #3b82f6;
+            --panel-bg: rgba(15, 15, 15, 0.85);
+            --highlight-color: rgba(59, 130, 246, 0.3);
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+
+        body.theme-papyrus {
+            --bg-color: #f3e5ab;
+            --text-color: #3d342b;
+            --accent-color: #8b5a2b;
+            --panel-bg: rgba(243, 229, 171, 0.9);
+        }
+
+        body.theme-synth {
+            --bg-color: #001a0f;
+            --text-color: #00ff9d;
+            --accent-color: #00ff9d;
+            --panel-bg: rgba(0, 20, 10, 0.9);
+        }
+
+        .font-crimson {
+            font-family: 'Crimson Pro', serif;
+        }
+
+        .font-outfit {
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .glass-panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .prose-content p {
+            margin-bottom: 1.5em;
+            line-height: 1.8;
+            text-align: justify;
+            animation: fadeSlideUp 0.8s ease-out forwards;
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        @keyframes fadeSlideUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* STREAMING INDICATOR */
+        .stream-cursor {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding-top: 20px;
+            padding-bottom: 40px;
+            opacity: 0.6;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--accent-color);
+        }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--accent-color);
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 0.3;
+                transform: scale(0.8);
+            }
+
+            50% {
+                opacity: 1;
+                transform: scale(1.2);
+            }
+
+            100% {
+                opacity: 0.3;
+                transform: scale(0.8);
+            }
+        }
+
+        /* LAYERS */
+        #particle-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.5;
+        }
+
+        #night-shift-overlay {
+            position: fixed;
+            inset: 0;
+            background: #ff9d00;
+            mix-blend-mode: multiply;
+            pointer-events: none;
+            z-index: 9999;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        /* LOADER */
+        .ai-loader {
+            width: 48px;
+            height: 48px;
+            border: 2px solid var(--accent-color);
+            border-radius: 50%;
+            display: inline-block;
+            box-sizing: border-box;
+            animation: rotation 2s linear infinite;
+            border-bottom-color: transparent;
+        }
+
+        @keyframes rotation {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body
+    class="font-crimson antialiased overflow-x-hidden transition-colors duration-500 selection:bg-blue-500/30 selection:text-white"
+    id="app-body">
+
+    <div id="night-shift-overlay"></div>
+    <canvas id="particle-canvas"></canvas>
+
+    <div class="fixed top-0 left-0 w-full h-0.5 z-50 bg-white/5">
+        <div id="progress-bar"
+            class="h-full bg-[var(--accent-color)] w-0 transition-all duration-100 shadow-[0_0_10px_var(--accent-color)]">
+        </div>
+    </div>
+
+    <!-- HEADER -->
+    <header class="fixed top-0 w-full z-40 transition-transform duration-500" id="main-header">
+        <div
+            class="glass-panel mx-4 mt-4 rounded-2xl px-6 py-3 flex items-center justify-between max-w-5xl mx-auto shadow-2xl">
+            <div class="flex items-center gap-4">
+                <div class="h-2 w-2 rounded-full bg-[var(--accent-color)] animate-pulse" id="status-dot"></div>
+                <div class="flex flex-col">
+                    <h1 class="text-xs font-bold tracking-[0.2em] uppercase opacity-80">ZenReader V8</h1>
+                    <span id="meta-info" class="text-[10px] opacity-50">Memory Active</span>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <!-- AI Toggle -->
+                <label class="inline-flex items-center cursor-pointer mr-2 group"
+                    title="Activer/Désactiver la traduction IA">
+                    <input type="checkbox" id="ai-toggle" class="sr-only peer">
+                    <div
+                        class="relative w-8 h-4 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white/50 after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-[var(--accent-color)]">
+                    </div>
+                    <span
+                        class="ms-2 text-[9px] font-bold uppercase opacity-50 group-hover:opacity-100 transition-opacity">AI</span>
+                </label>
+
+                <select id="lang-select"
+                    class="bg-black/20 text-[10px] uppercase font-bold rounded px-2 py-1 border border-white/10 outline-none focus:border-[var(--accent-color)] cursor-pointer hover:bg-white/5">
+                    <option value="original">Original (EN)</option>
+                    <option value="French">Français</option>
+                    <option value="Spanish">Español</option>
+                    <option value="Japanese">Japonais</option>
+                </select>
+                <button onclick="toggleSettings()" class="p-2 rounded-lg hover:bg-white/10"><i
+                        data-lucide="sliders-horizontal" class="w-4 h-4 opacity-70"></i></button>
+            </div>
+        </div>
+    </header>
+
+    <!-- SETTINGS PANEL -->
+    <div id="settings-panel"
+        class="fixed top-24 right-4 w-72 glass-panel rounded-2xl p-6 z-50 transform translate-x-[120%] transition-transform duration-300 shadow-2xl">
+        <h3 class="text-[10px] font-bold uppercase tracking-widest mb-3 opacity-50">Atmosphère</h3>
+        <div class="grid grid-cols-3 gap-2 mb-6">
+            <button onclick="setTheme('void')"
+                class="p-2 rounded border border-white/5 hover:bg-white/5 text-[9px] uppercase">Void</button>
+            <button onclick="setTheme('papyrus')"
+                class="p-2 rounded border border-white/5 hover:bg-white/5 text-[9px] uppercase text-[#f3e5ab]">Papyrus</button>
+            <button onclick="setTheme('synth')"
+                class="p-2 rounded border border-white/5 hover:bg-white/5 text-[9px] uppercase text-[#00ff9d]">Synth</button>
+        </div>
+        <h3 class="text-[10px] font-bold uppercase tracking-widest mb-3 opacity-50">Confort</h3>
+        <input type="range" min="0" max="80" value="0" oninput="setWarmth(this.value)"
+            class="w-full h-1 bg-white/10 rounded appearance-none accent-orange-500 mb-6">
+        <h3 class="text-[10px] font-bold uppercase tracking-widest mb-3 opacity-50">Taille</h3>
+        <input type="range" min="14" max="28" value="18" oninput="setFontSize(this.value)"
+            class="w-full h-1 bg-white/10 rounded appearance-none accent-[var(--accent-color)]">
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <main class="relative z-10 pt-32 pb-40 min-h-screen px-6 md:px-12 transition-all duration-500">
+        <div class="max-w-[750px] mx-auto">
+
+            <!-- Header Info -->
+            <div class="text-center mb-12 opacity-0 transition-opacity duration-700" id="chapter-header">
+                <div
+                    class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[var(--accent-color)] bg-[var(--accent-color)]/10 text-[var(--accent-color)] text-[9px] font-bold tracking-widest uppercase mb-6">
+                    <span id="chapter-num">CHARGEMENT...</span>
+                </div>
+                <h2 id="chapter-title" class="text-3xl md:text-5xl font-semibold leading-tight mb-6"></h2>
+                <div
+                    class="h-px w-20 bg-gradient-to-r from-transparent via-[var(--accent-color)] to-transparent mx-auto opacity-30">
+                </div>
+            </div>
+
+            <!-- Text Content Container -->
+            <article id="chapter-content" class="text-lg prose-content min-h-[20vh] pb-10">
+                <div id="initial-loader" class="flex flex-col items-center justify-center py-20">
+                    <span class="ai-loader"></span>
+                    <p class="mt-4 text-[10px] font-mono tracking-widest opacity-50 animate-pulse">CONNEXION
+                        NEURONALE...</p>
+                </div>
+            </article>
+
+            <!-- Streaming Indicator -->
+            <div id="stream-indicator"
+                class="hidden flex-col items-center justify-center py-8 opacity-0 transition-opacity duration-500">
+                <div class="stream-cursor">
+                    <div class="pulse-dot"></div>
+                    <span>TRADUCTION EN COURS...</span>
+                </div>
+            </div>
+
+            <!-- Cache Indicator (Subtle) -->
+            <div id="cache-indicator" class="hidden text-center text-[9px] font-mono opacity-30 pb-4">
+                Données chargées depuis la mémoire locale
+            </div>
+
+        </div>
+    </main>
+
+    <!-- NAV DOCK -->
+    <div id="nav-dock"
+        class="fixed bottom-8 left-1/2 -translate-x-1/2 glass-panel px-4 py-3 rounded-full flex items-center gap-6 z-50 shadow-2xl transition-all duration-500 hidden">
+        <button id="prev-btn" class="hover:text-[var(--accent-color)] disabled:opacity-30"><i data-lucide="arrow-left"
+                class="w-5 h-5"></i></button>
+        <span class="text-[10px] font-bold opacity-50 cursor-pointer hover:opacity-100"
+            onclick="window.scrollTo({top:0,behavior:'smooth'})">HAUT</span>
+        <button id="next-btn" class="hover:text-[var(--accent-color)] disabled:opacity-30"><i data-lucide="arrow-right"
+                class="w-5 h-5"></i></button>
+    </div>
+
+    <script>
+        // --- INIT ---
+        window.onload = () => {
+            if (window.lucide) lucide.createIcons();
+            initParticles();
+            loadSettings();
+
+            // Chargement de la dernière position sauvegardée
+            const lastUrl = localStorage.getItem('zen_last_url');
+            if (lastUrl) state.currentUrl = lastUrl;
+
+            loadChapterStream();
+        };
+
+        const state = {
+            currentUrl: 'https://novelbin.com/b/48-hours-a-day/chapter-170',
+            nextUrl: null,
+            prevUrl: null,
+            lang: localStorage.getItem('zen_lang') || 'original',
+            aiEnabled: localStorage.getItem('zen_ai_enabled') !== 'false', // Default true
+            theme: localStorage.getItem('zen_theme') || 'void',
+            cacheBuffer: "" // Accumulateur pour sauvegarder le texte complet
+        };
+
+        const els = {
+            content: document.getElementById('chapter-content'),
+            initialLoader: document.getElementById('initial-loader'),
+            streamIndicator: document.getElementById('stream-indicator'),
+            cacheIndicator: document.getElementById('cache-indicator'),
+            title: document.getElementById('chapter-title'),
+            header: document.getElementById('chapter-header'),
+            navDock: document.getElementById('nav-dock'),
+            langSelect: document.getElementById('lang-select'),
+            aiToggle: document.getElementById('ai-toggle'),
+            statusDot: document.getElementById('status-dot')
+        };
+
+        // --- CACHE MANAGEMENT SYSTEM ---
+
+        // Génère une clé unique pour le chapitre et la langue
+        const getCacheKey = (url, lang) => `zen_cache_${btoa(url).slice(-20)}_${lang}`;
+
+        function loadFromCache(url, lang) {
+            const key = getCacheKey(url, lang);
+            const cachedData = localStorage.getItem(key);
+            if (!cachedData) return null;
+            try {
+                return JSON.parse(cachedData);
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function saveToCache(url, lang, metaData, fullHtml) {
+            // 1. Nettoyage (On supprime les vieux chapitres pour ne garder que le courant)
+            // On parcourt toutes les clés et on vire celles qui commencent par zen_cache
+            Object.keys(localStorage).forEach(k => {
+                if (k.startsWith('zen_cache_')) {
+                    localStorage.removeItem(k);
+                }
+            });
+
+            // 2. Sauvegarde du nouveau
+            const key = getCacheKey(url, lang);
+            const cacheObject = {
+                meta: metaData,
+                html: fullHtml,
+                timestamp: Date.now()
+            };
+            try {
+                localStorage.setItem(key, JSON.stringify(cacheObject));
+                console.log("💾 Chapitre sauvegardé en cache local");
+            } catch (e) {
+                console.warn("Espace LocalStorage plein, cache impossible", e);
+            }
+        }
+
+        // --- CORE: STREAMING READER ---
+        async function loadChapterStream(url = state.currentUrl) {
+            // UI Reset
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            els.header.style.opacity = 0;
+            els.navDock.classList.add('hidden');
+            els.initialLoader.style.display = 'flex';
+            els.streamIndicator.classList.add('hidden');
+            els.cacheIndicator.classList.add('hidden');
+            els.statusDot.classList.add('animate-pulse');
+            els.statusDot.style.backgroundColor = "var(--accent-color)";
+
+            // Sauvegarde de l'URL courante pour reprise future
+            localStorage.setItem('zen_last_url', url);
+            state.currentUrl = url;
+            state.cacheBuffer = ""; // Reset buffer
+
+            // Vider le contenu sauf le loader
+            const paragraphs = els.content.querySelectorAll('p');
+            paragraphs.forEach(p => p.remove());
+
+            // 1. Tentative de chargement depuis le Cache
+            // Si AI désactivée, on force 'original', sinon on prend la langue choisie
+            const effectiveLang = state.aiEnabled ? state.lang : 'original';
+
+            const cached = loadFromCache(url, effectiveLang);
+            if (cached) {
+                console.log("⚡ Chargement depuis le cache local");
+                renderFullChapter(cached.meta, cached.html, true);
+                return;
+            }
+
+            // 2. Si pas de cache, appel réseau
+            try {
+                const apiUrl = `/api/chapter?url=${encodeURIComponent(url)}&lang=${effectiveLang}`;
+                const response = await fetch(apiUrl);
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+
+                let buffer = '';
+                let metaData = null;
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        if (!line.trim()) continue;
+                        try {
+                            const data = JSON.parse(line);
+
+                            if (data.type === 'meta') {
+                                metaData = data;
+                                handleMetaData(data);
+                            } else if (data.type === 'content') {
+                                handleContentData(data);
+                            }
+                        } catch (e) { }
+                    }
+                }
+
+                // Fin du stream
+                els.streamIndicator.classList.add('hidden');
+                els.navDock.classList.remove('hidden');
+                els.statusDot.classList.remove('animate-pulse');
+
+                // Sauvegarde en cache une fois fini
+                if (metaData && state.cacheBuffer.length > 100) {
+                    saveToCache(url, effectiveLang, metaData, state.cacheBuffer);
+                }
+
+            } catch (e) {
+                console.error("Stream Error", e);
+                els.content.innerHTML += `<p style="color:red">Erreur: ${e.message}</p>`;
+            }
+        }
+
+        function handleMetaData(data) {
+            els.initialLoader.style.display = 'none';
+            els.header.style.opacity = 1;
+            els.streamIndicator.classList.remove('hidden');
+            els.streamIndicator.style.opacity = 1;
+
+            els.title.innerText = data.title;
+            const chapNum = data.title.match(/Chapter\s+(\d+)/i)?.[1] || "??";
+            document.getElementById('chapter-num').innerText = `CH.${chapNum}`;
+
+            state.nextUrl = data.next;
+            state.prevUrl = data.prev;
+
+            setupNavButtons(data);
+
+            // Restaurer position de scroll si existe pour ce chapitre
+            const savedScroll = localStorage.getItem(`zen_scroll_${btoa(state.currentUrl)}`);
+            if (savedScroll) {
+                setTimeout(() => window.scrollTo({ top: parseInt(savedScroll), behavior: 'smooth' }), 500);
+            }
+        }
+
+        function handleContentData(data) {
+            state.cacheBuffer += data.html; // Accumuler pour le cache
+
+            const temp = document.createElement('div');
+            temp.innerHTML = data.html;
+            Array.from(temp.children).forEach(child => {
+                els.content.appendChild(child);
+            });
+        }
+
+        // Fonction utilisée uniquement quand on charge depuis le cache
+        function renderFullChapter(data, html, isCached) {
+            handleMetaData(data);
+
+            // Injection directe du HTML complet
+            const temp = document.createElement('div');
+            temp.innerHTML = html;
+            Array.from(temp.children).forEach(child => {
+                // Pas d'animation fadeSlideUp pour le cache, c'est instantané
+                child.style.animation = "none";
+                child.style.opacity = "1";
+                child.style.transform = "translateY(0)";
+                els.content.appendChild(child);
+            });
+
+            els.streamIndicator.classList.add('hidden');
+            els.navDock.classList.remove('hidden');
+            els.statusDot.classList.remove('animate-pulse');
+
+            if (isCached) {
+                els.statusDot.style.backgroundColor = "#10b981"; // Vert pour succès cache
+                els.cacheIndicator.classList.remove('hidden');
+            }
+        }
+
+        function setupNavButtons(data) {
+            const prevBtn = document.getElementById('prev-btn');
+            const nextBtn = document.getElementById('next-btn');
+
+            prevBtn.onclick = () => { if (data.prev) loadChapterStream(data.prev); };
+            nextBtn.onclick = () => { if (data.next) loadChapterStream(data.next); };
+            prevBtn.disabled = !data.prev;
+            nextBtn.disabled = !data.next;
+        }
+
+        // --- SCROLL SAVING ---
+        // Sauvegarde la position de scroll toutes les secondes
+        setInterval(() => {
+            if (state.currentUrl && window.scrollY > 100) {
+                localStorage.setItem(`zen_scroll_${btoa(state.currentUrl)}`, Math.floor(window.scrollY));
+            }
+        }, 1000);
+
+
+        // --- SETTINGS ---
+        els.langSelect.value = state.lang;
+        els.langSelect.disabled = !state.aiEnabled;
+        els.langSelect.style.opacity = state.aiEnabled ? "1" : "0.3";
+
+        els.langSelect.onchange = (e) => {
+            state.lang = e.target.value;
+            localStorage.setItem('zen_lang', state.lang);
+            loadChapterStream();
+        };
+
+        els.aiToggle.checked = state.aiEnabled;
+        els.aiToggle.onchange = (e) => {
+            state.aiEnabled = e.target.checked;
+            localStorage.setItem('zen_ai_enabled', state.aiEnabled);
+
+            // Update UI
+            els.langSelect.disabled = !state.aiEnabled;
+            els.langSelect.style.opacity = state.aiEnabled ? "1" : "0.3";
+
+            loadChapterStream();
+        };
+
+        function toggleSettings() { document.getElementById('settings-panel').classList.toggle('translate-x-[120%]'); }
+        function setTheme(t) {
+            document.body.className = `font-crimson antialiased overflow-x-hidden transition-colors duration-500 theme-${t}`;
+            localStorage.setItem('zen_theme', t);
+            initParticles();
+        }
+        function setWarmth(v) { document.getElementById('night-shift-overlay').style.opacity = v / 100; }
+        function setFontSize(s) { els.content.style.fontSize = `${s}px`; }
+
+        function loadSettings() {
+            setTheme(state.theme);
+        }
+
+        // --- PARTICLES ---
+        function initParticles() {
+            const canvas = document.getElementById('particle-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+            let particles = [];
+            let color = document.body.classList.contains('theme-papyrus') ? '139, 90, 43' : '59, 130, 246';
+            for (let i = 0; i < 40; i++) particles.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, s: Math.random() * 2, dy: Math.random() * 0.5 + 0.1, a: Math.random() * 0.5 });
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = `rgba(${color}, 0.5)`;
+                particles.forEach(p => { p.y -= p.dy; if (p.y < 0) p.y = canvas.height; ctx.globalAlpha = p.a; ctx.beginPath(); ctx.arc(p.x, p.y, p.s, 0, Math.PI * 2); ctx.fill(); });
+                requestAnimationFrame(animate);
+            }
+            animate();
+        }
+    </script>
+</body>
+
+</html>
