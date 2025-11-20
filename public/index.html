@@ -37,6 +37,13 @@
             --panel-bg: rgba(0, 20, 10, 0.9);
         }
 
+        body.theme-dusk {
+            --bg-color: #1e1e24;
+            --text-color: #e3e3e8;
+            --accent-color: #a5b4fc;
+            --panel-bg: rgba(30, 30, 36, 0.9);
+        }
+
         .font-crimson {
             font-family: 'Crimson Pro', serif;
         }
@@ -217,6 +224,8 @@
                 class="p-2 rounded border border-white/5 hover:bg-white/5 text-[9px] uppercase text-[#f3e5ab]">Papyrus</button>
             <button onclick="setTheme('synth')"
                 class="p-2 rounded border border-white/5 hover:bg-white/5 text-[9px] uppercase text-[#00ff9d]">Synth</button>
+            <button onclick="setTheme('dusk')"
+                class="p-2 rounded border border-white/5 hover:bg-white/5 text-[9px] uppercase text-[#a5b4fc]">Dusk</button>
         </div>
         <h3 class="text-[10px] font-bold uppercase tracking-widest mb-3 opacity-50">Confort</h3>
         <input type="range" min="0" max="80" value="0" oninput="setWarmth(this.value)"
@@ -298,8 +307,9 @@
             nextUrl: null,
             prevUrl: null,
             lang: localStorage.getItem('zen_lang') || 'original',
-            aiEnabled: localStorage.getItem('zen_ai_enabled') !== 'false', // Default true
+            aiEnabled: false, // Default false, no persistence
             theme: localStorage.getItem('zen_theme') || 'void',
+            fontSize: localStorage.getItem('zen_font_size') || 18,
             cacheBuffer: "" // Accumulateur pour sauvegarder le texte complet
         };
 
@@ -518,6 +528,11 @@
         els.langSelect.disabled = !state.aiEnabled;
         els.langSelect.style.opacity = state.aiEnabled ? "1" : "0.3";
 
+        // Initialize font size slider
+        const fontSlider = document.querySelector('input[oninput="setFontSize(this.value)"]');
+        if (fontSlider) fontSlider.value = state.fontSize;
+        setFontSize(state.fontSize);
+
         els.langSelect.onchange = (e) => {
             state.lang = e.target.value;
             localStorage.setItem('zen_lang', state.lang);
@@ -527,7 +542,7 @@
         els.aiToggle.checked = state.aiEnabled;
         els.aiToggle.onchange = (e) => {
             state.aiEnabled = e.target.checked;
-            localStorage.setItem('zen_ai_enabled', state.aiEnabled);
+            // No persistence for AI toggle
 
             // Update UI
             els.langSelect.disabled = !state.aiEnabled;
@@ -543,7 +558,11 @@
             initParticles();
         }
         function setWarmth(v) { document.getElementById('night-shift-overlay').style.opacity = v / 100; }
-        function setFontSize(s) { els.content.style.fontSize = `${s}px`; }
+        function setFontSize(s) {
+            els.content.style.fontSize = `${s}px`;
+            state.fontSize = s;
+            localStorage.setItem('zen_font_size', s);
+        }
 
         function loadSettings() {
             setTheme(state.theme);
@@ -555,7 +574,10 @@
             const ctx = canvas.getContext('2d');
             canvas.width = window.innerWidth; canvas.height = window.innerHeight;
             let particles = [];
-            let color = document.body.classList.contains('theme-papyrus') ? '139, 90, 43' : '59, 130, 246';
+            let color = '59, 130, 246'; // Default Blue
+            if (document.body.classList.contains('theme-papyrus')) color = '139, 90, 43';
+            if (document.body.classList.contains('theme-dusk')) color = '165, 180, 252'; // Indigo
+
             for (let i = 0; i < 40; i++) particles.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, s: Math.random() * 2, dy: Math.random() * 0.5 + 0.1, a: Math.random() * 0.5 });
             function animate() {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
