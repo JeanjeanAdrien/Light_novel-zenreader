@@ -1,5 +1,6 @@
 import { scrapeChapter } from '../services/scraper.js';
 import { translateBatch } from '../services/translator.js';
+import { getDb } from '../db/index.js';
 
 export async function getChapter(req, res) {
     const { url, lang } = req.query;
@@ -7,16 +8,87 @@ export async function getChapter(req, res) {
 
     console.log(`📚 Flux demandé: ${url} -> ${lang}`);
 
-    // Configuration des headers pour le streaming
-    res.setHeader('Content-Type', 'application/x-ndjson'); // Newline Delimited JSON
+    res.setHeader('Content-Type', 'application/x-ndjson');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
     try {
-        // 1. SCRAPING (Rapide)
-        const data = await scrapeChapter(url);
+        const db = await getDb();
 
-        // 2. ENVOI DES METADONNÉES (Immédiat)
+        // 1. CHECK DB
+        let chapterId = null;
+        const cachedChapter = await db.get('SELECT * FROM chapters WHERE url = ?', url);
+
+        if (cachedChapter) {
+            chapterId = cachedChapter.id;
+            console.log("💾 Chapitre trouvé en BDD");
+
+            // Si demande original ou langue source
+            if (!lang || lang === 'original' || lang === 'en') {
+                const content = JSON.parse(cachedChapter.content);
+
+                res.write(JSON.stringify({
+                    type: 'meta',
+                    title: cachedChapter.title,
+                    next: cachedChapter.next,
+                    prev: cachedChapter.prev,
+                    totalParagraphs: content.length
+                }) + "\n");
+
+                res.write(JSON.stringify({
+                    type: 'content',
+                    html: content.map(p => `<p>${p}</p>`).join('')
+                }) + "\n");
+
+                return res.end();
+            }
+
+            // Si demande traduction
+            const cachedTranslation = await db.get('SELECT * FROM translations WHERE chapter_id = ? AND lang = ?', [chapterId, lang]);
+            if (cachedTranslation) {
+                console.log(`💾 Traduction (${lang}) trouvée en BDD`);
+                const content = JSON.parse(cachedTranslation.content);
+
+                res.write(JSON.stringify({
+                    type: 'meta',
+                    title: cachedChapter.title,
+                    next: cachedChapter.next,
+                    prev: cachedChapter.prev,
+                    totalParagraphs: content.length
+                }) + "\n");
+
+                res.write(JSON.stringify({
+                    type: 'content',
+                    html: content.map(p => `<p>${p}</p>`).join('')
+                }) + "\n");
+
+                return res.end();
+            }
+        }
+
+        // 2. SCRAPING (Si pas en BDD ou traduction manquante)
+        let data;
+        if (cachedChapter) {
+            data = {
+                title: cachedChapter.title,
+                paragraphs: JSON.parse(cachedChapter.content),
+                next: cachedChapter.next,
+                prev: cachedChapter.prev
+            };
+        } else {
+            console.log("🌐 Scraping en cours...");
+            data = await scrapeChapter(url);
+
+            // Save to DB
+            const result = await db.run(
+                'INSERT INTO chapters (url, title, content, next, prev) VALUES (?, ?, ?, ?, ?)',
+                [url, data.title, JSON.stringify(data.paragraphs), data.next, data.prev]
+            );
+            chapterId = result.lastID;
+            console.log("💾 Nouveau chapitre sauvegardé en BDD");
+        }
+
+        // 2b. ENVOI METADONNÉES
         res.write(JSON.stringify({
             type: 'meta',
             title: data.title,
@@ -25,15 +97,17 @@ export async function getChapter(req, res) {
             totalParagraphs: data.paragraphs.length
         }) + "\n");
 
-        // 3. STREAMING DE LA TRADUCTION
+        // 3. STREAMING & TRADUCTION
         if (lang && lang !== 'original' && lang !== 'en') {
             const BATCH_SIZE = 8;
+            let fullTranslatedContent = [];
 
             for (let i = 0; i < data.paragraphs.length; i += BATCH_SIZE) {
                 const chunk = data.paragraphs.slice(i, i + BATCH_SIZE);
 
                 try {
                     const translatedChunk = await translateBatch(chunk, lang);
+                    fullTranslatedContent.push(...translatedChunk);
 
                     res.write(JSON.stringify({
                         type: 'content',
@@ -41,15 +115,25 @@ export async function getChapter(req, res) {
                     }) + "\n");
 
                 } catch (err) {
-                    // En cas d'erreur sur un chunk, on envoie l'original
+                    console.error("Erreur traduction chunk:", err);
                     res.write(JSON.stringify({
                         type: 'content',
                         html: chunk.map(p => `<p style="opacity:0.7">${p}</p>`).join('')
                     }) + "\n");
                 }
             }
+
+            // Save translation to DB
+            if (fullTranslatedContent.length > 0) {
+                await db.run(
+                    'INSERT INTO translations (chapter_id, lang, content) VALUES (?, ?, ?)',
+                    [chapterId, lang, JSON.stringify(fullTranslatedContent)]
+                );
+                console.log(`💾 Traduction (${lang}) sauvegardée en BDD`);
+            }
+
         } else {
-            // Pas de traduction, on envoie tout
+            // Cas original (déjà géré par le cache check, mais fallback ici si scraping vient de se faire)
             res.write(JSON.stringify({
                 type: 'content',
                 html: data.paragraphs.map(p => `<p>${p}</p>`).join('')
