@@ -1,4 +1,6 @@
-import { SlidersHorizontal } from 'lucide-react';
+import { Settings, Sparkles } from 'lucide-react';
+import Sidebar from './Sidebar';
+import useScrollDirection from '../hooks/useScrollDirection';
 
 export default function Header({
     aiEnabled,
@@ -6,31 +8,49 @@ export default function Header({
     lang,
     setLang,
     toggleSettings,
-    status
+    status,
+    currentUrl,
+    onNavigate
 }) {
+    const scrollDir = useScrollDirection();
+
     return (
-        <header className="fixed top-0 w-full z-40 transition-transform duration-500" id="main-header">
-            <div className="glass-panel mx-4 mt-4 rounded-2xl px-6 py-3 flex items-center justify-between max-w-5xl mx-auto shadow-2xl">
+        <header
+            className={`fixed top-0 left-0 right-0 z-40 transition-transform duration-500 ${scrollDir === 'down' ? '-translate-y-full' : 'translate-y-0'
+                }`}
+        >
+            <div className="glass-panel border-b border-white/5 px-6 py-4 flex items-center justify-between">
+
+                {/* Left: Sidebar & Title */}
                 <div className="flex items-center gap-4">
-                    <div className={`h-2 w-2 rounded-full ${status === 'loading' || status === 'streaming' ? 'bg-[var(--accent-color)] animate-pulse' : status === 'cached' ? 'bg-emerald-500' : 'bg-[var(--accent-color)]'}`} id="status-dot"></div>
+                    <Sidebar currentUrl={currentUrl} onNavigate={onNavigate} />
                     <div className="flex flex-col">
-                        <h1 className="text-xs font-bold tracking-[0.2em] uppercase opacity-80">ZenReader V8</h1>
-                        <span className="text-[10px] opacity-50">React Core</span>
+                        <h1 className="text-lg font-bold tracking-tight hidden md:block">
+                            Zen<span className="text-[var(--accent-color)]">Reader</span>
+                        </h1>
+                        {/* Status Dot */}
+                        <div className="flex items-center gap-2 mt-1">
+                            <div className={`h-1.5 w-1.5 rounded-full ${status === 'loading' || status === 'streaming' ? 'bg-[var(--accent-color)] animate-pulse' : status === 'cached' ? 'bg-emerald-500' : 'bg-white/20'}`}></div>
+                            <span className="text-[9px] uppercase tracking-widest opacity-50">{status}</span>
+                        </div>
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
-                    {/* AI Toggle */}
-                    <label className="inline-flex items-center cursor-pointer mr-2 group" title="Activer/Désactiver la traduction IA">
-                        <input
-                            type="checkbox"
-                            className="sr-only peer"
-                            checked={aiEnabled}
-                            onChange={(e) => setAiEnabled(e.target.checked)}
-                        />
-                        <div className="relative w-8 h-4 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white/50 after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-[var(--accent-color)]"></div>
-                        <span className="ms-2 text-[9px] font-bold uppercase opacity-50 group-hover:opacity-100 transition-opacity">AI</span>
-                    </label>
 
+                {/* Right: Controls */}
+                <div className="flex items-center gap-3">
+                    {/* AI Toggle */}
+                    <button
+                        onClick={() => setAiEnabled(!aiEnabled)}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 border ${aiEnabled
+                                ? 'bg-[var(--accent-color)]/10 border-[var(--accent-color)]/30 text-[var(--accent-color)]'
+                                : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'
+                            }`}
+                    >
+                        <Sparkles className={`w-3 h-3 ${aiEnabled ? 'animate-pulse-custom' : ''}`} />
+                        <span>AI {aiEnabled ? 'ON' : 'OFF'}</span>
+                    </button>
+
+                    {/* Lang Selector */}
                     <select
                         value={lang}
                         onChange={(e) => setLang(e.target.value)}
@@ -44,8 +64,12 @@ export default function Header({
                         <option value="Japanese">Japonais</option>
                     </select>
 
-                    <button onClick={toggleSettings} className="p-2 rounded-lg hover:bg-white/10">
-                        <SlidersHorizontal className="w-4 h-4 opacity-70" />
+                    {/* Settings Toggle */}
+                    <button
+                        onClick={toggleSettings}
+                        className="p-2 rounded-lg hover:bg-white/10 text-white/70 hover:text-white transition-colors"
+                    >
+                        <Settings className="w-5 h-5" />
                     </button>
                 </div>
             </div>

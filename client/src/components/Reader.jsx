@@ -8,7 +8,7 @@ export default function Reader({ content, meta, isLoading, isStreaming, error, f
 
     return (
         <main className="relative z-10 pt-32 pb-40 min-h-screen px-6 md:px-12 transition-all duration-500">
-            <div className="max-w-[750px] mx-auto">
+            <div className="max-w-2xl mx-auto">
 
                 {/* Header Info */}
                 <div className={`text-center mb-12 transition-opacity duration-700 ${meta ? 'opacity-100' : 'opacity-0'}`}>

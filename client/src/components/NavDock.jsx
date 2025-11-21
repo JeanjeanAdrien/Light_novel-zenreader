@@ -1,31 +1,48 @@
 import { ArrowLeft, ArrowRight } from 'lucide-react';
+import useScrollDirection from '../hooks/useScrollDirection';
+import { useState, useEffect } from 'react';
 
 export default function NavDock({ prevUrl, nextUrl, onNavigate }) {
-    if (!prevUrl && !nextUrl) return null;
+    const scrollDir = useScrollDirection();
+    const [isAtBottom, setIsAtBottom] = useState(false);
+
+    useEffect(() => {
+        const handleScroll = () => {
+            const bottom = Math.ceil(window.innerHeight + window.scrollY) >= document.documentElement.scrollHeight - 100;
+            setIsAtBottom(bottom);
+        };
+
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    const isVisible = scrollDir === 'up' || isAtBottom;
 
     return (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 glass-panel px-4 py-3 rounded-full flex items-center gap-6 z-50 shadow-2xl transition-all duration-500">
+        <div
+            className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-40 flex gap-4 transition-all duration-500 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-24 opacity-0'
+                }`}
+        >
             <button
                 onClick={() => onNavigate(prevUrl)}
                 disabled={!prevUrl}
-                className="hover:text-[var(--accent-color)] disabled:opacity-30"
+                className={`p-4 rounded-full glass-panel transition-all duration-300 ${prevUrl
+                        ? 'hover:bg-white/10 hover:scale-110 text-white shadow-lg shadow-black/20'
+                        : 'opacity-30 cursor-not-allowed text-white/50'
+                    }`}
             >
-                <ArrowLeft className="w-5 h-5" />
+                <ArrowLeft className="w-6 h-6" />
             </button>
-
-            <span
-                className="text-[10px] font-bold opacity-50 cursor-pointer hover:opacity-100"
-                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-            >
-                HAUT
-            </span>
 
             <button
                 onClick={() => onNavigate(nextUrl)}
                 disabled={!nextUrl}
-                className="hover:text-[var(--accent-color)] disabled:opacity-30"
+                className={`p-4 rounded-full glass-panel transition-all duration-300 ${nextUrl
+                        ? 'hover:bg-[var(--accent-color)] hover:scale-110 text-white shadow-lg shadow-[var(--accent-color)]/20 border-[var(--accent-color)]/30'
+                        : 'opacity-30 cursor-not-allowed text-white/50'
+                    }`}
             >
-                <ArrowRight className="w-5 h-5" />
+                <ArrowRight className="w-6 h-6" />
             </button>
         </div>
     );

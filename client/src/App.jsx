@@ -72,6 +72,8 @@ export default function App() {
         setLang={setLang}
         toggleSettings={() => setIsSettingsOpen(!isSettingsOpen)}
         status={isLoading ? 'loading' : isStreaming ? 'streaming' : 'idle'}
+        currentUrl={currentUrl}
+        onNavigate={setCurrentUrl}
       />
 
       <SettingsPanel

@@ -148,3 +148,39 @@ export async function getChapter(req, res) {
         res.end();
     }
 }
+
+export async function getChapters(req, res) {
+    const { currentUrl } = req.query;
+    if (!currentUrl) return res.status(400).json({ error: "URL manquante" });
+
+    try {
+        const db = await getDb();
+
+        // Extract base URL (simplified logic: match up to /chapter-...)
+        // Example: https://novelbin.com/b/novel-name/chapter-1 -> https://novelbin.com/b/novel-name%
+        // Fix: Handle URLs that might not match the exact pattern or have query params
+        // We'll try to match the /b/novel-name part more robustly
+        const baseUrlMatch = currentUrl.match(/(.*\/b\/[^\/]+)/);
+
+        console.log(`🔍 Fetching chapters for: ${currentUrl}`);
+
+        if (!baseUrlMatch) {
+            console.log("⚠️ No base URL match found");
+            return res.json([]);
+        }
+
+        const baseUrl = baseUrlMatch[1];
+        console.log(`📂 Base URL: ${baseUrl}`);
+
+        const chapters = await db.all(
+            'SELECT title, url FROM chapters WHERE url LIKE ? ORDER BY id ASC',
+            [`${baseUrl}%`]
+        );
+
+        console.log(`✅ Found ${chapters.length} chapters`);
+        res.json(chapters);
+    } catch (error) {
+        console.error("❌ Erreur récupération chapitres:", error.message);
+        res.status(500).json({ error: error.message });
+    }
+}

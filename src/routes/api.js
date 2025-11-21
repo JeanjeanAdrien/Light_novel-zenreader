@@ -1,8 +1,9 @@
 import express from 'express';
-import { getChapter } from '../controllers/chapterController.js';
+import { getChapter, getChapters } from '../controllers/chapterController.js';
 
 const router = express.Router();
 
 router.get('/chapter', getChapter);
+router.get('/chapters', getChapters);
 
 export default router;
