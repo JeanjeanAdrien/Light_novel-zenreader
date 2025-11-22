@@ -100,5 +100,55 @@ export function useChapterStream() {
         }
     }, []);
 
-    return { content, meta, isLoading, isStreaming, error, loadChapter };
+    const preloadChapter = useCallback(async (url, lang, aiEnabled) => {
+        if (!url) return;
+        const effectiveLang = aiEnabled ? lang : 'original';
+        const cacheKey = `zen_cache_${btoa(url).slice(-20)}_${effectiveLang}`;
+
+        if (localStorage.getItem(cacheKey)) return; // Already cached
+
+        try {
+            console.log(`🔄 Preloading: ${url}`);
+            const apiUrl = `http://localhost:3000/api/chapter?url=${encodeURIComponent(url)}&lang=${effectiveLang}`;
+            const response = await fetch(apiUrl);
+            if (!response.ok) return;
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            let fullHtml = '';
+            let metaData = null;
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop();
+
+                for (const line of lines) {
+                    if (!line.trim()) continue;
+                    try {
+                        const data = JSON.parse(line);
+                        if (data.type === 'meta') metaData = data;
+                        else if (data.type === 'content') fullHtml += data.html;
+                    } catch (e) { }
+                }
+            }
+
+            if (metaData && fullHtml.length > 100) {
+                localStorage.setItem(cacheKey, JSON.stringify({
+                    meta: metaData,
+                    html: fullHtml,
+                    timestamp: Date.now()
+                }));
+                console.log(`✅ Preloaded: ${url}`);
+            }
+        } catch (err) {
+            console.error("Preload failed:", err);
+        }
+    }, []);
+
+    return { content, meta, isLoading, isStreaming, error, loadChapter, preloadChapter };
 }

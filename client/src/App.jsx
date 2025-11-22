@@ -13,12 +13,15 @@ export default function App() {
   const [lang, setLang] = useLocalStorage('zen_lang', 'original');
   const [theme, setTheme] = useLocalStorage('zen_theme', 'void');
   const [fontSize, setFontSize] = useLocalStorage('zen_font_size', 18);
+  const [lineHeight, setLineHeight] = useLocalStorage('zen_line_height', 1.8);
+  const [maxWidth, setMaxWidth] = useLocalStorage('zen_max_width', 672); // Default 2xl approx
+  const [contrast, setContrast] = useLocalStorage('zen_contrast', 100); // 100% opacity/brightness
   const [aiEnabled, setAiEnabled] = useState(false); // Default off, no persistence
   const [warmth, setWarmth] = useState(0);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Hooks
-  const { content, meta, isLoading, isStreaming, error, loadChapter } = useChapterStream();
+  const { content, meta, isLoading, isStreaming, error, loadChapter, preloadChapter } = useChapterStream();
 
   // Effects
   useEffect(() => {
@@ -28,6 +31,13 @@ export default function App() {
   useEffect(() => {
     loadChapter(currentUrl, lang, aiEnabled);
   }, [currentUrl, lang, aiEnabled, loadChapter]);
+
+  // Preload next chapter
+  useEffect(() => {
+    if (meta?.next && !isLoading && !isStreaming) {
+      preloadChapter(meta.next, lang, aiEnabled);
+    }
+  }, [meta, lang, aiEnabled, isLoading, isStreaming, preloadChapter]);
 
   // Scroll saving
   useEffect(() => {
@@ -53,12 +63,6 @@ export default function App() {
 
   return (
     <>
-      <div
-        id="night-shift-overlay"
-        className="fixed inset-0 bg-[#ff9d00] mix-blend-multiply pointer-events-none z-[9999] transition-opacity duration-300"
-        style={{ opacity: warmth / 100 }}
-      ></div>
-
       <Particles theme={theme} />
 
       <div className="fixed top-0 left-0 w-full h-0.5 z-50 bg-white/5">
@@ -84,6 +88,12 @@ export default function App() {
         setWarmth={setWarmth}
         fontSize={fontSize}
         setFontSize={setFontSize}
+        lineHeight={lineHeight}
+        setLineHeight={setLineHeight}
+        maxWidth={maxWidth}
+        setMaxWidth={setMaxWidth}
+        contrast={contrast}
+        setContrast={setContrast}
       />
 
       <Reader
@@ -93,6 +103,10 @@ export default function App() {
         isStreaming={isStreaming}
         error={error}
         fontSize={fontSize}
+        lineHeight={lineHeight}
+        maxWidth={maxWidth}
+        contrast={contrast}
+        warmth={warmth}
       />
 
       <NavDock

@@ -129,7 +129,9 @@ body.theme-dusk {
 /* Reader Typography */
 .prose-content p {
   margin-bottom: 1.5em;
-  line-height: 1.8;
+  margin-bottom: 1.5em;
+  line-height: var(--line-height, 1.8);
+  text-align: justify;
   text-align: justify;
 }
 

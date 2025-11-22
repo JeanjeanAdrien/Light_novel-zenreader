@@ -5,7 +5,13 @@ export default function SettingsPanel({
     warmth,
     setWarmth,
     fontSize,
-    setFontSize
+    setFontSize,
+    lineHeight,
+    setLineHeight,
+    maxWidth,
+    setMaxWidth,
+    contrast,
+    setContrast
 }) {
     return (
         <div
@@ -32,7 +38,31 @@ export default function SettingsPanel({
                 type="range" min="14" max="28"
                 value={fontSize}
                 onChange={(e) => setFontSize(e.target.value)}
-                className="w-full h-1 bg-white/10 rounded appearance-none accent-[var(--accent-color)]"
+                className="w-full h-1 bg-white/10 rounded appearance-none accent-[var(--accent-color)] mb-6"
+            />
+
+            <h3 className="text-[10px] font-bold uppercase tracking-widest mb-3 opacity-50">Interligne</h3>
+            <input
+                type="range" min="1.2" max="2.5" step="0.1"
+                value={lineHeight}
+                onChange={(e) => setLineHeight(e.target.value)}
+                className="w-full h-1 bg-white/10 rounded appearance-none accent-[var(--accent-color)] mb-6"
+            />
+
+            <h3 className="text-[10px] font-bold uppercase tracking-widest mb-3 opacity-50">Largeur</h3>
+            <input
+                type="range" min="400" max="1200" step="20"
+                value={maxWidth}
+                onChange={(e) => setMaxWidth(e.target.value)}
+                className="w-full h-1 bg-white/10 rounded appearance-none accent-[var(--accent-color)] mb-6"
+            />
+
+            <h3 className="text-[10px] font-bold uppercase tracking-widest mb-3 opacity-50">Contraste</h3>
+            <input
+                type="range" min="50" max="150"
+                value={contrast}
+                onChange={(e) => setContrast(e.target.value)}
+                className="w-full h-1 bg-white/10 rounded appearance-none accent-[var(--accent-color)] mb-6"
             />
         </div>
     );

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-export default function Reader({ content, meta, isLoading, isStreaming, error, fontSize }) {
+export default function Reader({ content, meta, isLoading, isStreaming, error, fontSize, lineHeight, maxWidth, contrast, warmth }) {
     const contentRef = useRef(null);
 
     // Auto-scroll to bottom during streaming if user is near bottom? 
@@ -8,7 +8,10 @@ export default function Reader({ content, meta, isLoading, isStreaming, error, f
 
     return (
         <main className="relative z-10 pt-32 pb-40 min-h-screen px-6 md:px-12 transition-all duration-500">
-            <div className="max-w-2xl mx-auto">
+            <div
+                className="mx-auto transition-all duration-500"
+                style={{ maxWidth: `${maxWidth}px` }}
+            >
 
                 {/* Header Info */}
                 <div className={`text-center mb-12 transition-opacity duration-700 ${meta ? 'opacity-100' : 'opacity-0'}`}>
@@ -21,9 +24,14 @@ export default function Reader({ content, meta, isLoading, isStreaming, error, f
 
                 {/* Text Content */}
                 <article
+                    key={meta?.url || 'loading'}
                     ref={contentRef}
-                    className="text-lg prose-content min-h-[20vh] pb-10"
-                    style={{ fontSize: `${fontSize}px` }}
+                    className="text-lg prose-content min-h-[20vh] pb-10 animate-fade-slide-up"
+                    style={{
+                        fontSize: `${fontSize}px`,
+                        '--line-height': lineHeight,
+                        filter: `sepia(${warmth}%) contrast(${contrast}%)`
+                    }}
                 >
                     {isLoading && (
                         <div className="flex flex-col items-center justify-center py-20">
