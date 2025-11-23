@@ -38,7 +38,7 @@ export function useChapterStream() {
                 return;
             }
 
-            const apiUrl = `http://localhost:3000/api/chapter?url=${encodeURIComponent(url)}&lang=${effectiveLang}`;
+            const apiUrl = `/api/chapter?url=${encodeURIComponent(url)}&lang=${effectiveLang}`;
             const response = await fetch(apiUrl, { signal: abortControllerRef.current.signal });
 
             if (!response.ok) throw new Error('Network response was not ok');
@@ -109,7 +109,7 @@ export function useChapterStream() {
 
         try {
             console.log(`🔄 Preloading: ${url}`);
-            const apiUrl = `http://localhost:3000/api/chapter?url=${encodeURIComponent(url)}&lang=${effectiveLang}`;
+            const apiUrl = `/api/chapter?url=${encodeURIComponent(url)}&lang=${effectiveLang}`;
             const response = await fetch(apiUrl);
             if (!response.ok) return;
 

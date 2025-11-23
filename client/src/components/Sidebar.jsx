@@ -21,7 +21,7 @@ export default function Sidebar({ currentUrl, onNavigate }) {
     useEffect(() => {
         if (isOpen && chapters.length === 0) {
             setLoading(true);
-            fetch(`http://localhost:3000/api/chapters?currentUrl=${encodeURIComponent(currentUrl)}`)
+            fetch(`/api/chapters?currentUrl=${encodeURIComponent(currentUrl)}`)
                 .then(res => res.json())
                 .then(data => {
                     setChapters(data);

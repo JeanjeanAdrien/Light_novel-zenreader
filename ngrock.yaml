@@ -1,0 +1,11 @@
+# ngrok.yml
+
+version: "2"
+tunnels:
+    frontend:
+        addr: 5173 # Remplacez 5173 par le port de votre serveur Vite si différent
+        proto: http
+    backend:
+        addr: 3000 # Remplacez 5000 par le port de votre serveur Node.js/Backend
+        proto: http
+authtoken: 1zYaHIZIthBetA3CbE3aY6GgS42_79zP2zZdh7DWP4fUoN4S9

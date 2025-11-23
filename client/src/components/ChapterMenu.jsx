@@ -21,7 +21,7 @@ export default function ChapterMenu({ currentUrl, onNavigate }) {
     useEffect(() => {
         if (isOpen && chapters.length === 0) {
             setLoading(true);
-            fetch(`http://localhost:3000/api/chapters?currentUrl=${encodeURIComponent(currentUrl)}`)
+            fetch(`/api/chapters?currentUrl=${encodeURIComponent(currentUrl)}`)
                 .then(res => res.json())
                 .then(data => {
                     setChapters(data);
@@ -89,8 +89,8 @@ export default function ChapterMenu({ currentUrl, onNavigate }) {
                                             setIsOpen(false);
                                         }}
                                         className={`w-full text-left px-4 py-3 rounded-xl text-sm transition-all duration-200 group ${currentUrl === chapter.url
-                                                ? 'bg-[var(--accent-color)] text-white shadow-lg shadow-[var(--accent-color)]/20'
-                                                : 'hover:bg-white/5 text-white/70 hover:text-white'
+                                            ? 'bg-[var(--accent-color)] text-white shadow-lg shadow-[var(--accent-color)]/20'
+                                            : 'hover:bg-white/5 text-white/70 hover:text-white'
                                             }`}
                                     >
                                         <span className="line-clamp-1 font-medium">{chapter.title}</span>
