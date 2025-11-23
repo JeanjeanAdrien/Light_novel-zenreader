@@ -1,10 +1,10 @@
 import express from 'express';
-import { getChapter, getChapters, getBooks } from '../controllers/chapterController.js';
+import booksRouter from './books.js';
+import chaptersRouter from './chapters.js';
 
 const router = express.Router();
 
-router.get('/chapter', getChapter);
-router.get('/chapters', getChapters);
-router.get('/books', getBooks);
+router.use('/books', booksRouter);
+router.use('/', chaptersRouter);
 
 export default router;
