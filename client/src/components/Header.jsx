@@ -1,4 +1,5 @@
-import { Settings, Sparkles } from 'lucide-react';
+import { Settings, BookOpen, Home, Library, Sparkles } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import useScrollDirection from '../hooks/useScrollDirection';
 
@@ -13,6 +14,7 @@ export default function Header({
     onNavigate
 }) {
     const scrollDir = useScrollDirection();
+    const navigate = useNavigate();
 
     return (
         <header
@@ -24,15 +26,29 @@ export default function Header({
                 {/* Left: Sidebar & Title */}
                 <div className="flex items-center gap-4">
                     <Sidebar currentUrl={currentUrl} onNavigate={onNavigate} />
-                    <div className="flex flex-col">
-                        <h1 className="text-lg font-bold tracking-tight hidden md:block">
-                            Zen<span className="text-[var(--accent-color)]">Reader</span>
-                        </h1>
-                        {/* Status Dot */}
-                        <div className="flex items-center gap-2 mt-1">
-                            <div className={`h-1.5 w-1.5 rounded-full ${status === 'loading' || status === 'streaming' ? 'bg-[var(--accent-color)] animate-pulse' : status === 'cached' ? 'bg-emerald-500' : 'bg-white/20'}`}></div>
-                            <span className="text-[9px] uppercase tracking-widest opacity-50">{status}</span>
+
+                    <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
+                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center shadow-lg shadow-purple-500/20">
+                            <BookOpen className="w-4 h-4 text-white" />
                         </div>
+                        <span className="font-bold text-lg tracking-tight text-white/90 hidden sm:block">ZenReader</span>
+                    </div>
+
+                    <div className="hidden md:flex items-center gap-1 ml-4 border-l border-white/10 pl-4">
+                        <button
+                            onClick={() => navigate('/')}
+                            className="p-2 rounded-lg hover:bg-white/10 text-white/60 hover:text-white transition-colors"
+                            title="Home"
+                        >
+                            <Home className="w-4 h-4" />
+                        </button>
+                        <button
+                            onClick={() => navigate('/library')}
+                            className="p-2 rounded-lg hover:bg-white/10 text-white/60 hover:text-white transition-colors"
+                            title="Library"
+                        >
+                            <Library className="w-4 h-4" />
+                        </button>
                     </div>
                 </div>
 
@@ -42,8 +58,8 @@ export default function Header({
                     <button
                         onClick={() => setAiEnabled(!aiEnabled)}
                         className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 border ${aiEnabled
-                                ? 'bg-[var(--accent-color)]/10 border-[var(--accent-color)]/30 text-[var(--accent-color)]'
-                                : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'
+                            ? 'bg-[var(--accent-color)]/10 border-[var(--accent-color)]/30 text-[var(--accent-color)]'
+                            : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'
                             }`}
                     >
                         <Sparkles className={`w-3 h-3 ${aiEnabled ? 'animate-pulse-custom' : ''}`} />

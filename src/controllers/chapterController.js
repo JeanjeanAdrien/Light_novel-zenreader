@@ -184,3 +184,53 @@ export async function getChapters(req, res) {
         res.status(500).json({ error: error.message });
     }
 }
+
+export async function getBooks(req, res) {
+    try {
+        const db = await getDb();
+
+        // Get all chapters ordered by date desc
+        const chapters = await db.all('SELECT * FROM chapters ORDER BY created_at DESC');
+
+        // Group by book (using URL pattern)
+        const booksMap = new Map();
+
+        for (const chapter of chapters) {
+            // Extract base URL (e.g., https://novelbin.com/b/novel-name)
+            const match = chapter.url.match(/(.*\/b\/[^\/]+)/);
+            if (!match) continue;
+
+            const baseUrl = match[1];
+
+            if (!booksMap.has(baseUrl)) {
+                // Parse content to get a preview or image if possible (not stored currently, so we use title)
+                // We'll use the title of the first chapter found (which is the latest due to sort) 
+                // but cleaned up to represent the book title
+
+                // Heuristic: Remove "Chapter X" from title
+                let bookTitle = chapter.title.replace(/Chapter\s+\d+.*$/i, '').trim();
+                if (bookTitle.endsWith('-')) bookTitle = bookTitle.slice(0, -1).trim();
+
+                booksMap.set(baseUrl, {
+                    id: baseUrl, // Use URL as ID for now
+                    title: bookTitle || "Unknown Novel",
+                    url: baseUrl, // Base URL of the book
+                    latestChapter: {
+                        title: chapter.title,
+                        url: chapter.url,
+                        id: chapter.id
+                    },
+                    cover: null // We don't have covers yet
+                });
+            }
+        }
+
+        const books = Array.from(booksMap.values());
+        console.log(`📚 Found ${books.length} books in library`);
+        res.json(books);
+
+    } catch (error) {
+        console.error("❌ Error fetching books:", error);
+        res.status(500).json({ error: error.message });
+    }
+}

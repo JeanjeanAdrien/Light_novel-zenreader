@@ -1,27 +1,44 @@
 import { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, useSearchParams, useNavigate } from 'react-router-dom';
 import Header from './components/Header';
 import SettingsPanel from './components/SettingsPanel';
 import Reader from './components/Reader';
 import NavDock from './components/NavDock';
 import Particles from './components/Particles';
+import Home from './pages/Home';
+import Library from './pages/Library';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { useChapterStream } from './hooks/useChapterStream';
 
-export default function App() {
+function ReaderPage() {
   // State
-  const [currentUrl, setCurrentUrl] = useLocalStorage('zen_last_url', 'https://novelbin.com/b/48-hours-a-day/chapter-170');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+
+  const urlParam = searchParams.get('url');
+  const [lastUrl, setLastUrl] = useLocalStorage('zen_last_url', 'https://novelbin.com/b/48-hours-a-day/chapter-170');
+
+  // Use URL param if present, otherwise fallback to lastUrl
+  const currentUrl = urlParam || lastUrl;
+
   const [lang, setLang] = useLocalStorage('zen_lang', 'original');
   const [theme, setTheme] = useLocalStorage('zen_theme', 'void');
   const [fontSize, setFontSize] = useLocalStorage('zen_font_size', 18);
   const [lineHeight, setLineHeight] = useLocalStorage('zen_line_height', 1.8);
-  const [maxWidth, setMaxWidth] = useLocalStorage('zen_max_width', 672); // Default 2xl approx
-  const [contrast, setContrast] = useLocalStorage('zen_contrast', 100); // 100% opacity/brightness
-  const [aiEnabled, setAiEnabled] = useState(false); // Default off, no persistence
+  const [maxWidth, setMaxWidth] = useLocalStorage('zen_max_width', 672);
+  const [contrast, setContrast] = useLocalStorage('zen_contrast', 100);
+  const [aiEnabled, setAiEnabled] = useState(false);
   const [warmth, setWarmth] = useState(0);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Hooks
   const { content, meta, isLoading, isStreaming, error, loadChapter, preloadChapter } = useChapterStream();
+
+  // Update URL when navigating
+  const handleNavigate = (newUrl) => {
+    setLastUrl(newUrl);
+    setSearchParams({ url: newUrl });
+  };
 
   // Effects
   useEffect(() => {
@@ -77,7 +94,7 @@ export default function App() {
         toggleSettings={() => setIsSettingsOpen(!isSettingsOpen)}
         status={isLoading ? 'loading' : isStreaming ? 'streaming' : 'idle'}
         currentUrl={currentUrl}
-        onNavigate={setCurrentUrl}
+        onNavigate={handleNavigate}
       />
 
       <SettingsPanel
@@ -87,7 +104,6 @@ export default function App() {
         warmth={warmth}
         setWarmth={setWarmth}
         fontSize={fontSize}
-        setFontSize={setFontSize}
         lineHeight={lineHeight}
         setLineHeight={setLineHeight}
         maxWidth={maxWidth}
@@ -112,8 +128,20 @@ export default function App() {
       <NavDock
         prevUrl={meta?.prev}
         nextUrl={meta?.next}
-        onNavigate={setCurrentUrl}
+        onNavigate={handleNavigate}
       />
     </>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/library" element={<Library />} />
+        <Route path="/read" element={<ReaderPage />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
