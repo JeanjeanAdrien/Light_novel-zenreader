@@ -189,45 +189,88 @@ export async function getBooks(req, res) {
     try {
         const db = await getDb();
 
-        // Get all chapters ordered by date desc
-        const chapters = await db.all('SELECT * FROM chapters ORDER BY created_at DESC');
+        // 1. Get all books from the books table
+        const books = await db.all('SELECT * FROM books ORDER BY title ASC');
 
-        // Group by book (using URL pattern)
-        const booksMap = new Map();
+        // 2. Get reading history (latest chapter for each book)
+        // We group by base URL pattern to match chapters to books
+        const history = await db.all(`
+            SELECT url, title, id, created_at 
+            FROM chapters 
+            ORDER BY created_at DESC
+        `);
 
-        for (const chapter of chapters) {
-            // Extract base URL (e.g., https://novelbin.com/b/novel-name)
-            const match = chapter.url.match(/(.*\/b\/[^\/]+)/);
-            if (!match) continue;
+        // 3. Map history to books and identify orphans
+        const library = books.map(book => {
+            // Extract book slug from source_url
+            // https://novelbin.com/b/my-vampire-system -> my-vampire-system
+            const bookSlug = book.source_url.split('/b/')[1];
 
-            const baseUrl = match[1];
+            const latestChapter = history.find(ch => ch.url.includes(bookSlug)) || {
+                title: "Start Reading",
+                url: `${book.source_url}/chapter-1`, // Default to chapter 1
+                id: null
+            };
 
-            if (!booksMap.has(baseUrl)) {
-                // Parse content to get a preview or image if possible (not stored currently, so we use title)
-                // We'll use the title of the first chapter found (which is the latest due to sort) 
-                // but cleaned up to represent the book title
+            return {
+                ...book,
+                genres: JSON.parse(book.genres || '[]'),
+                tags: JSON.parse(book.tags || '[]'),
+                latestChapter,
+                isReading: latestChapter.id !== null
+            };
+        });
 
-                // Heuristic: Remove "Chapter X" from title
-                let bookTitle = chapter.title.replace(/Chapter\s+\d+.*$/i, '').trim();
-                if (bookTitle.endsWith('-')) bookTitle = bookTitle.slice(0, -1).trim();
+        // 4. Handle Orphan Books (in history but not in books table)
+        // Group history by book (simple heuristic: first part of URL path after /b/)
+        const bookSlugs = new Set(books.map(b => b.source_url.split('/b/')[1]));
 
-                booksMap.set(baseUrl, {
-                    id: baseUrl, // Use URL as ID for now
-                    title: bookTitle || "Unknown Novel",
-                    url: baseUrl, // Base URL of the book
-                    latestChapter: {
-                        title: chapter.title,
-                        url: chapter.url,
-                        id: chapter.id
-                    },
-                    cover: null // We don't have covers yet
-                });
+        const orphanChapters = history.filter(ch => {
+            const match = ch.url.match(/\/b\/([^\/]+)/);
+            return match && !bookSlugs.has(match[1]);
+        });
+
+        // Group orphans by book slug to avoid duplicates
+        const orphanBooksMap = {};
+        orphanChapters.forEach(ch => {
+            const match = ch.url.match(/\/b\/([^\/]+)/);
+            if (match) {
+                const slug = match[1];
+                if (!orphanBooksMap[slug]) {
+                    orphanBooksMap[slug] = {
+                        title: slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()), // Capitalize slug
+                        source_url: `https://novelbin.com/b/${slug}`,
+                        cover_image: null, // No cover for orphans
+                        rating: 0,
+                        genres: [],
+                        tags: [],
+                        latestChapter: ch,
+                        isReading: true,
+                        isOrphan: true
+                    };
+                } else {
+                    // Update if this chapter is newer (history is already sorted DESC)
+                    if (new Date(ch.created_at) > new Date(orphanBooksMap[slug].latestChapter.created_at)) {
+                        orphanBooksMap[slug].latestChapter = ch;
+                    }
+                }
             }
-        }
+        });
 
-        const books = Array.from(booksMap.values());
-        console.log(`📚 Found ${books.length} books in library`);
-        res.json(books);
+        const fullLibrary = [...library, ...Object.values(orphanBooksMap)];
+
+        // 5. Sort: Reading first, then by Rating
+        fullLibrary.sort((a, b) => {
+            // 1. Reading status (Reading comes first)
+            if (a.isReading && !b.isReading) return -1;
+            if (!a.isReading && b.isReading) return 1;
+
+            // 2. Rating (Higher rating comes first)
+            return (b.rating || 0) - (a.rating || 0);
+        });
+
+        console.log(`📚 Sending ${fullLibrary.length} books from library (incl. ${Object.keys(orphanBooksMap).length} orphans)`);
+        res.json(fullLibrary);
 
     } catch (error) {
         console.error("❌ Error fetching books:", error);

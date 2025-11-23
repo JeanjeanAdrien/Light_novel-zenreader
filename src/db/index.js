@@ -31,6 +31,20 @@ export async function getDb() {
             FOREIGN KEY(chapter_id) REFERENCES chapters(id),
             UNIQUE(chapter_id, lang)
         );
+
+        CREATE TABLE IF NOT EXISTS books (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT,
+            author TEXT,
+            description TEXT,
+            cover_image TEXT,
+            genres JSON,
+            tags JSON,
+            status TEXT,
+            rating REAL,
+            source_url TEXT UNIQUE,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
     `);
 
     console.log("💾 Database initialized");

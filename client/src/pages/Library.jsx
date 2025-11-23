@@ -52,32 +52,64 @@ export default function Library() {
                         <p className="text-sm mt-2">Start reading to add books here.</p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
                         {books.map((book) => (
                             <div
                                 key={book.id}
                                 onClick={() => navigate(`/read?url=${encodeURIComponent(book.latestChapter.url)}`)}
-                                className="group relative bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/20 rounded-2xl p-6 transition-all duration-300 cursor-pointer hover:-translate-y-1 hover:shadow-2xl"
+                                className="group relative bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/20 rounded-2xl p-4 transition-all duration-300 cursor-pointer hover:-translate-y-2 hover:shadow-2xl flex flex-col h-full"
                             >
-                                <div className="aspect-[2/3] bg-gradient-to-br from-gray-800 to-black rounded-xl mb-4 overflow-hidden relative shadow-lg group-hover:shadow-purple-500/20 transition-shadow">
-                                    <div className="absolute inset-0 flex items-center justify-center text-white/10 group-hover:text-white/20 transition-colors">
-                                        <Book className="w-12 h-12" />
-                                    </div>
-                                    {/* Placeholder for cover if we had one */}
-                                    <div className="absolute bottom-0 left-0 w-full p-4 bg-gradient-to-t from-black/80 to-transparent">
-                                        <span className="text-xs font-mono text-purple-300">
-                                            {book.url.split('/b/')[1]?.split('/')[0] || 'NOVEL'}
-                                        </span>
+                                {/* Cover Image */}
+                                <div className="aspect-[2/3] rounded-xl mb-4 overflow-hidden relative shadow-lg group-hover:shadow-purple-500/20 transition-shadow bg-gray-900">
+                                    {book.cover_image ? (
+                                        <img
+                                            src={book.cover_image}
+                                            alt={book.title}
+                                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                            loading="lazy"
+                                        />
+                                    ) : (
+                                        <div className="absolute inset-0 flex items-center justify-center text-white/10">
+                                            <Book className="w-12 h-12" />
+                                        </div>
+                                    )}
+
+                                    {/* Rating Badge */}
+                                    {book.rating > 0 && (
+                                        <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-md text-xs font-bold text-yellow-400 flex items-center gap-1">
+                                            <span>★</span> {book.rating}
+                                        </div>
+                                    )}
+
+                                    {/* Status Badge */}
+                                    <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-md text-[10px] uppercase font-bold text-white/80">
+                                        {book.status}
                                     </div>
                                 </div>
 
-                                <h3 className="text-lg font-bold leading-tight mb-2 line-clamp-2 group-hover:text-purple-200 transition-colors">
-                                    {book.title}
-                                </h3>
+                                <div className="flex-1 flex flex-col">
+                                    <h3 className="text-lg font-bold leading-tight mb-1 group-hover:text-purple-200 transition-colors line-clamp-2">
+                                        {book.title}
+                                    </h3>
+                                    <p className="text-xs text-white/40 mb-3">{book.author}</p>
 
-                                <div className="flex items-center gap-2 text-xs text-white/40 mt-4">
-                                    <Clock className="w-3 h-3" />
-                                    <span className="truncate">Last: {book.latestChapter.title}</span>
+                                    {/* Genres */}
+                                    <div className="flex flex-wrap gap-1 mb-4">
+                                        {book.genres.slice(0, 3).map(g => (
+                                            <span key={g} className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-white/60 border border-white/5">
+                                                {g}
+                                            </span>
+                                        ))}
+                                    </div>
+
+                                    <div className="mt-auto pt-4 border-t border-white/5 flex items-center justify-between text-xs text-white/40">
+                                        <div className="flex items-center gap-1.5">
+                                            <Clock className="w-3 h-3" />
+                                            <span className="truncate max-w-[120px]">
+                                                {book.latestChapter.id ? 'Continue' : 'Start Reading'}
+                                            </span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         ))}
